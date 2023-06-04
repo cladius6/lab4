@@ -1,0 +1,15 @@
+version: '3.5'
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    ports:
+      - '5429:5432'
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  pg_data:
