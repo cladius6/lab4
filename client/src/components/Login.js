@@ -17,9 +17,7 @@ function Login() {
     event.preventDefault();
     try {
       const response = await axios.post('http://localhost:3004/api/login', { username, password });
-      // Zapisz token JWT w local storage
       localStorage.setItem('token', response.data.token);
-      // Przekierowanie do listy notatek po zalogowaniu
       window.location.href = '/';
     } catch (error) {
       console.error(error.message);

@@ -17,7 +17,6 @@ function Register() {
     event.preventDefault();
     try {
       await axios.post('http://localhost:3004/api/signup', { username, password });
-      // Przekierowanie do strony logowania po zarejestrowaniu
       window.location.href = '/login';
     } catch (error) {
       console.error(error.message);

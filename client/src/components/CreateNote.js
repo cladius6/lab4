@@ -26,7 +26,6 @@ function CreateNote() {
           },
         }
       );
-      // Przekierowanie do listy notatek po utworzeniu nowej notatki
       window.location.href = '/';
     } catch (error) {
       console.error(error.message);
