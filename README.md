@@ -1,6 +1,7 @@
 # LAB4
-
-# Getting Started
+## Requirements
+- Node.js 16.x or higher (tested on v16.15.1)
+## Getting Started
 Clone repository:
 ```bash
 git clone <this>
