@@ -3,11 +3,14 @@ const bcrypt = require('bcrypt')
 const app = express()
 const jwt = require('jsonwebtoken')
 const pool = require('./db')
+const cors = require('cors');
 
 app.use(express.json())
+app.use(cors());
+
 const port = 3004
 
-app.post('/signup', async (req, res) => {
+app.post('/api/signup', async (req, res) => {
   try {
     const { username, password } = req.body
     console.log({ username, password })
@@ -24,7 +27,7 @@ app.post('/signup', async (req, res) => {
   }
 })
 
-app.post('/login', async (req, res) => {
+app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body
     const user = await pool.query('SELECT * FROM users WHERE username = $1', [
@@ -53,7 +56,7 @@ app.post('/login', async (req, res) => {
 })
 
 function authenticateToken(req, res, next) {
-  const token = req.headers.authorization
+  const token = req.headers.authorization?.split(' ')[1];
 
   if (!token) {
     return res.status(401).json({ message: 'Authentication required' })
@@ -69,7 +72,7 @@ function authenticateToken(req, res, next) {
   })
 }
 
-app.get('/notes', authenticateToken, async (req, res) => {
+app.get('/api/notes', authenticateToken, async (req, res) => {
   try {
     const notes = await pool.query('SELECT * FROM notes WHERE user_id = $1', [req.user.userId]);
     res.json(notes.rows);
@@ -79,9 +82,10 @@ app.get('/notes', authenticateToken, async (req, res) => {
   }
 });
 
-app.get('/notes/:id', authenticateToken, async (req, res) => {
+app.get('/api/notes/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    console.log(id)
     const note = await pool.query('SELECT * FROM notes WHERE id = $1 AND user_id = $2', [id, req.user.userId]);
 
     if (note.rows.length === 0) {
@@ -95,7 +99,7 @@ app.get('/notes/:id', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/notes', authenticateToken, async (req, res) => {
+app.post('/api/notes', authenticateToken, async (req, res) => {
   try {
     const { title, content } = req.body;
     const newNote = await pool.query(
@@ -109,7 +113,7 @@ app.post('/notes', authenticateToken, async (req, res) => {
   }
 });
 
-app.put('/notes/:id', authenticateToken, async (req, res) => {
+app.put('/api/notes/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, content } = req.body;
@@ -129,7 +133,7 @@ app.put('/notes/:id', authenticateToken, async (req, res) => {
   }
 });
 
-app.delete('/notes/:id', authenticateToken, async (req, res) => {
+app.delete('/api/notes/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const deletedNote = await pool.query('DELETE FROM notes WHERE id = $1 AND user_id = $2 RETURNING *', [id, req.user.userId]);
