@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, Navigate  } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link  } from 'react-router-dom';
 import NoteList from './components/NoteList';
 import NoteDetails from './components/NoteDetails';
 import CreateNote from './components/CreateNote';
@@ -23,6 +23,9 @@ function App() {
               <>
                 <li>
                   <Link to="/">Note List</Link>
+                </li>
+                <li>
+                  <Link to="/notes/create">Create Note</Link>
                 </li>
                 <li>
                   <button onClick={handleLogout}>Logout</button>

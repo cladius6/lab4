@@ -13,9 +13,7 @@ const port = 3004
 app.post('/api/signup', async (req, res) => {
   try {
     const { username, password } = req.body
-    console.log({ username, password })
     const hashedPassword = await bcrypt.hash(password, 10)
-    console.log({ hashedPassword })
     const newUser = await pool.query(
       'INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *',
       [username, hashedPassword]
@@ -85,7 +83,6 @@ app.get('/api/notes', authenticateToken, async (req, res) => {
 app.get('/api/notes/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    console.log(id)
     const note = await pool.query('SELECT * FROM notes WHERE id = $1 AND user_id = $2', [id, req.user.userId]);
 
     if (note.rows.length === 0) {
@@ -150,5 +147,5 @@ app.delete('/api/notes/:id', authenticateToken, async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(` Example app listening on port ${port}`)
+  console.log(` Server listening on port ${port}`)
 })
