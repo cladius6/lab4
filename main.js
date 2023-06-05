@@ -1,29 +1,150 @@
-// Zadanie 1. (50pkt ł ˛acznie) Wykorzystuj ˛ac Node.js (i framework Express) oraz wybrany
-// system bazodanowy (np. MongoDB) zbuduj prost ˛a aplikacj˛e webow ˛a , która powinna umoz-˙
-// liwiac u ´ zytkownikom tworzenie, czytanie, aktualizacj˛e i usuwanie wspólnych notatek prze- ˙
-// chowywanych w bazie danych.
-// Zbuduj prosty interfejs w architekturze REST, który obsługuje z ˛adania i odpowiedzi HTTP. ˙
-// Twoje REST API powinno udost˛epniac przynajmniej poni ´ zej wylistowane endpointy: ˙
-// • GET /note - zwraca list˛e wszystkich notatek
-// • GET /note/:id - zwraca pojedyncz ˛a notatk˛e według ID
-// • POST /note - tworzy now ˛a notatk˛e
-// • PUT /note/:id - aktualizuje notatk˛e według ID
-// • DELETE /note/:id - usuwa notatk˛e według ID
-// Dodatkowo wykorzystaj JSON Web Tokens (JWT), aby ograniczyc dost˛ep do API. Do bu- ´
-// dowy responsywnego interfejsu uzytkownika wykorzystaj poznane dot ˛ad technologie. ˙
-// Szczegółowy podział punktów:
-// • REST API - 25 punktów
-// • Tokeny JWT - 15 punktów
-// • Responsywny interfejs uzytkownika - 10 punktów 
-
 const express = require('express')
+const bcrypt = require('bcrypt')
 const app = express()
-const port = 3000
+const jwt = require('jsonwebtoken')
+const pool = require('./db')
 
-app.get('/', (req, res) => {
-  res.send('Hello World!')
+app.use(express.json())
+const port = 3004
+
+app.post('/signup', async (req, res) => {
+  try {
+    const { username, password } = req.body
+    console.log({ username, password })
+    const hashedPassword = await bcrypt.hash(password, 10)
+    console.log({ hashedPassword })
+    const newUser = await pool.query(
+      'INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *',
+      [username, hashedPassword]
+    )
+    res.json(newUser.rows[0])
+  } catch (error) {
+    console.error(error.message)
+    res.status(500).send('Server Error')
+  }
 })
 
+app.post('/login', async (req, res) => {
+  try {
+    const { username, password } = req.body
+    const user = await pool.query('SELECT * FROM users WHERE username = $1', [
+      username,
+    ])
+
+    if (user.rows.length === 0) {
+      return res.status(401).json({ message: 'Invalid credentials' })
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      user.rows[0].password
+    )
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid credentials' })
+    }
+
+    const token = jwt.sign({ userId: user.rows[0].id }, 'secret_key')
+    res.json({ token })
+  } catch (error) {
+    console.error(error.message)
+    res.status(500).send('Server Error')
+  }
+})
+
+function authenticateToken(req, res, next) {
+  const token = req.headers.authorization
+
+  if (!token) {
+    return res.status(401).json({ message: 'Authentication required' })
+  }
+
+  jwt.verify(token, 'secret_key', (error, user) => {
+    if (error) {
+      return res.status(403).json({ message: 'Invalid token' })
+    }
+
+    req.user = user
+    next()
+  })
+}
+
+app.get('/notes', authenticateToken, async (req, res) => {
+  try {
+    const notes = await pool.query('SELECT * FROM notes WHERE user_id = $1', [req.user.userId]);
+    res.json(notes.rows);
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.get('/notes/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const note = await pool.query('SELECT * FROM notes WHERE id = $1 AND user_id = $2', [id, req.user.userId]);
+
+    if (note.rows.length === 0) {
+      return res.status(404).json({ message: 'Note not found' });
+    }
+
+    res.json(note.rows[0]);
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.post('/notes', authenticateToken, async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    const newNote = await pool.query(
+      'INSERT INTO notes (title, content, user_id) VALUES ($1, $2, $3) RETURNING *',
+      [title, content, req.user.userId]
+    );
+    res.json(newNote.rows[0]);
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.put('/notes/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content } = req.body;
+    const updatedNote = await pool.query(
+      'UPDATE notes SET title = $1, content = $2 WHERE id = $3 AND user_id = $4 RETURNING *',
+      [title, content, id, req.user.userId]
+    );
+
+    if (updatedNote.rows.length === 0) {
+      return res.status(404).json({ message: 'Note not found' });
+    }
+
+    res.json(updatedNote.rows[0]);
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.delete('/notes/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedNote = await pool.query('DELETE FROM notes WHERE id = $1 AND user_id = $2 RETURNING *', [id, req.user.userId]);
+
+    if (deletedNote.rows.length === 0) {
+      return res.status(404).json({ message: 'Note not found' });
+    }
+
+    res.json({ message: 'Note deleted' });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
+  console.log(` Example app listening on port ${port}`)
 })
